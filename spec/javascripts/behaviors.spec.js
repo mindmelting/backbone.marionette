@@ -375,6 +375,72 @@ describe("Behaviors", function(){
     });
   });
 
+  describe('behaviours in compositeview and nested itemview', function() {
+    var CV, V, hold, onDogeClickSpy, testBehavior;
+
+    beforeEach(function() {
+        hold = {};
+
+        onDogeClickSpy = new sinon.spy();
+
+        hold.test = Marionette.Behavior.extend({
+
+        initialize: function() {
+          testBehavior = this;
+        },
+
+        events: {
+          'click @ui.doge': 'onDogeClick',
+        },
+
+        onDogeClick: onDogeClickSpy
+
+      });
+
+      Marionette.Behaviors.behaviorsLookup = hold;
+
+      V = Marionette.ItemView.extend({
+        tagName: 'li',
+        template: _.template('<a href="#" class="doge"></a>'),
+        ui: {
+          doge: '.doge'
+        },
+        behaviors: {
+          test: {}
+        }
+      });
+
+      CV = Marionette.CompositeView.extend({
+        template: _.template('<a href="#" class="doge2"></a><ul></ul>'),
+        itemViewContainer: 'ul',
+        itemView: V,
+        ui: {
+          doge: '.doge2'
+        },
+        behaviors: {
+          test: {}
+        }
+      });
+    });
+
+    it("should handle behavior ui click event", function() {
+      var cv = new CV({
+        collection: new Backbone.Collection([
+          {},{},{}
+        ])
+      });
+      cv.render();
+      cv.$el.find('.doge2').click();
+
+      expect(cv.$('li').length).toBe(3);
+      expect(onDogeClickSpy).toHaveBeenCalledOnce();
+
+      cv.$el.find('li .doge').first().click();
+      expect(onDogeClickSpy).toHaveBeenCalledTwice();
+    });
+
+  });
+
   describe('showing a view in a layout', function() {
     var behavior, onShowSpy, onCloseSpy, hold;
     beforeEach(function() {
