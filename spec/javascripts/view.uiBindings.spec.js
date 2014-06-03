@@ -200,6 +200,39 @@ describe("view ui elements", function() {
 
   });
 
+  describe("when calling delegateEvents", function () {
+    var stub = sinon.stub(),
+        view;
+
+    var View = Marionette.ItemView.extend({
+      template: function () { return "<div id='foo'></div>"; },
+
+      ui: {
+        foo: "#foo"
+      },
+
+      events: {
+       
+      },
+
+      bar: stub
+    });
+
+    beforeEach(function () {
+      view = new View();
+      view.render();
+      _.extend(view.events, {
+        'click @ui.foo': 'bar'
+      });
+      view.delegateEvents();
+    });
+
+    it("the events should be re-normalised", function() {
+      view.ui.foo.click();
+      expect(stub.calledOnce).toBe(true); 
+    });
+  })
+
 });
 
 
