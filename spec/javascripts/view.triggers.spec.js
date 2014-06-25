@@ -1,229 +1,130 @@
-describe("view triggers", function(){
-  "use strict";
+describe('view triggers', function() {
+  'use strict';
 
-  describe("when DOM events are configured to trigger a view event, and the DOM events are fired", function(){
-    var View = Backbone.Marionette.ItemView.extend({
-      triggers: {
-        "click .foo": "do:foo",
-        "click .bar": "what:ever"
-      },
+  beforeEach(function() {
+    this.triggersHash = {'foo': 'fooHandler'};
+    this.eventsHash = {'bar': 'barHandler'};
 
-      render: function(){
-        this.$el.html("<button class='foo'></button><a href='#' class='bar'>asdf</a>");
-      }
-    });
+    this.fooHandlerStub = this.sinon.stub();
+    this.barHandlerStub = this.sinon.stub();
 
-    var view, fooHandler, whatHandler, args;
+    this.fooEvent = $.Event('foo');
+    this.barEvent = $.Event('bar');
+  });
 
-    beforeEach(function(){
-      view = new View({
-        model: new Backbone.Model(),
-        collection: new Backbone.Collection()
-      });
-      view.render();
+  describe('when DOM events are configured to trigger a view event, and the DOM events are fired', function() {
+    beforeEach(function() {
+      this.model      = new Backbone.Model();
+      this.collection = new Backbone.Collection();
 
-      fooHandler = jasmine.createSpy("do:foo event handler");
-      whatHandler = jasmine.createSpy("what:ever event handler");
-
-      view.on("do:foo", fooHandler);
-      view.on("what:ever", whatHandler);
-
-      view.on("do:foo", function(e){
-        args = e;
+      this.View = Marionette.ItemView.extend({triggers: this.triggersHash});
+      this.view = new this.View({
+        model      : this.model,
+        collection : this.collection
       });
 
-      view.$(".foo").trigger("click");
-      view.$(".bar").trigger("click");
+      this.view.on('fooHandler', this.fooHandlerStub);
+      this.view.$el.trigger(this.fooEvent);
     });
 
-    it("should trigger the first view event", function(){
-      expect(fooHandler).toHaveBeenCalled();
+    it('should trigger the first view event', function() {
+      expect(this.fooHandlerStub).to.have.been.calledOnce;
     });
 
-    it("should trigger the second view event", function(){
-      expect(whatHandler).toHaveBeenCalled();
+    it('should include the view in the event args', function() {
+      expect(this.fooHandlerStub.lastCall.args[0]).to.contain({view: this.view});
     });
 
-    it("should include the view in the event args", function(){
-      expect(args.view).toBe(view);
+    it('should include the views model in the event args', function() {
+      expect(this.fooHandlerStub.lastCall.args[0]).to.contain({model: this.model});
     });
 
-    it("should include the view's model in the event args", function(){
-      expect(args.model).toBe(view.model);
-    });
-
-    it("should include the view's collection in the event args", function(){
-      expect(args.collection).toBe(view.collection);
+    it('should include the views collection in the event args', function() {
+      expect(this.fooHandlerStub.lastCall.args[0]).to.contain({collection: this.collection});
     });
   });
 
-  describe('when triggers and standard events are both configured', function(){
-    var View = Backbone.Marionette.ItemView.extend({
-      triggers: {
-        "click .foo": "do:foo"
-      },
+  describe('when triggers and standard events are both configured', function() {
+    beforeEach(function() {
+      this.View = Marionette.ItemView.extend({
+        triggers   : this.triggersHash,
+        events     : this.eventsHash,
+        barHandler : this.barHandlerStub
+      });
 
-      events: {
-        "click .bar": "whateverClicked"
-      },
+      this.view = new this.View();
+      this.view.on('fooHandler', this.fooHandlerStub);
 
-      render: function(){
-        this.$el.html("<button class='foo'></button><a href='#' class='bar'>asdf</a>");
-      },
-
-      whateverClicked: function(){
-        this.itWasClicked = true;
-      }
+      this.view.$el.trigger(this.fooEvent);
+      this.view.$el.trigger(this.barEvent);
     });
 
-    var view, clickSpy, fooHandler;
-
-    beforeEach(function(){
-      view = new View();
-      view.render();
-
-      fooHandler = jasmine.createSpy("do:foo handler");
-      view.on("do:foo", fooHandler);
-
-      view.$(".foo").trigger("click");
-      view.$(".bar").trigger("click");
+    it('should fire the trigger', function() {
+      expect(this.fooHandlerStub).to.have.been.calledOnce;
     });
 
-    it("should fire the trigger", function(){
-      expect(fooHandler).toHaveBeenCalled();
-    });
-
-    it('should fire the standard event', function(){
-      expect(view.itWasClicked).toBe(true);
+    it('should fire the standard event', function() {
+      expect(this.barHandlerStub).to.have.been.calledOnce;
     });
   });
 
-  describe("when triggers are configured with a function", function(){
-    var View = Backbone.Marionette.ItemView.extend({
-      triggers: function(){
-        return {
-          "click .foo": "do:foo",
-          "click .bar": "what:ever"
-        };
-      },
+  describe('when triggers are configured with a function', function() {
+    beforeEach(function() {
+      this.triggersStub = this.sinon.stub().returns(this.triggersHash);
+      this.View = Marionette.ItemView.extend({triggers: this.triggersStub});
+      this.view = new this.View();
+      this.view.on('fooHandler', this.fooHandlerStub);
 
-      render: function(){
-        this.$el.html("<button class='foo'></button><a href='#' class='bar'>asdf</a>");
-      }
+      this.view.$el.trigger(this.fooEvent);
     });
 
-    var view, fooHandler, whatHandler;
-
-    beforeEach(function(){
-      view = new View();
-      view.render();
-
-      fooHandler = jasmine.createSpy("do:foo handler");
-      whatHandler = jasmine.createSpy("what:ever handler");
-
-      view.on("do:foo", fooHandler);
-      view.on("what:ever", whatHandler);
-
-      view.$(".foo").trigger("click");
-      view.$(".bar").trigger("click");
+    it('should call the function', function() {
+      expect(this.triggersStub).to.have.been.calledOnce.and.calledOn(this.view);
     });
 
-    it("should trigger the first view event", function(){
-      expect(fooHandler).toHaveBeenCalled();
-    });
-
-    it("should trigger the second view event", function(){
-      expect(whatHandler).toHaveBeenCalled();
+    it('should trigger the first view event', function() {
+      expect(this.fooHandlerStub).to.have.been.calledOnce;
     });
   });
 
-  describe("triggers should stop propigation and events by default", function() {
-    var myView = Backbone.Marionette.ItemView.extend({
-      triggers: {
-        'click h2': "headline:clicked"
-      },
+  describe('triggers should stop propigation and events by default', function() {
+    beforeEach(function() {
+      this.View = Marionette.ItemView.extend({triggers: this.triggersHash});
+      this.view = new this.View();
+      this.view.on('fooHandler', this.fooHandlerStub);
 
-      initialize: function() {
-        this.spanClicked = false;
-      },
-
-      onRender: function() {
-        var self = this;
-        this.$('span').on("click", function() {
-          self.spanClicked = true;
-        });
-      },
-
-      template: _.template("<h2><span>hi</span></h2><a href='#hash-url'>hash link</a>")
+      this.view.$el.trigger(this.fooEvent);
     });
 
-    var viewInstance;
-
-    beforeEach(function(){
-      viewInstance = new myView;
-      spyOn(window, 'onhashchange');
-
-      viewInstance.render();
-      viewInstance.$('h2').click();
-      viewInstance.$('a').click();
+    it('should stop propigation by default', function() {
+      expect(this.fooEvent.isPropagationStopped()).to.be.true;
     });
 
-    it("should stop propigation by default", function(){
-      expect(viewInstance.spanClicked).toBe(false);
-    });
-
-    it("should prevent default by default", function() {
-      expect(window.onhashchange).not.toHaveBeenCalled();
+    it('should prevent default by default', function() {
+      expect(this.fooEvent.isDefaultPrevented()).to.be.true;
     });
   });
 
-  describe("when triggers items are manually configured", function(){
-    var View = Backbone.Marionette.ItemView.extend({
-      triggers: {
-        "click .foo": {
-          event: "do:foo",
-          preventDefault: true,
-          stopPropagation: false
-        },
-        "click .bar": {
-          event: "do:bar",
-          stopPropagation: true
+  describe('when triggers items are manually configured', function() {
+    beforeEach(function() {
+      this.View = Marionette.ItemView.extend({
+        triggers: {
+          'foo': {
+            event: 'fooHandler',
+            preventDefault: true,
+            stopPropagation: false
+          }
         }
-      },
+      });
+      this.view = new this.View();
+      this.view.on('fooHandler', this.fooHandlerStub);
 
-      render: function(){
-        this.$el.html("<button class='foo'></button><a href='#' class='bar'>asdf</a>");
-      }
+      this.view.$el.trigger(this.fooEvent);
     });
 
-    var view, fooEvent, barEvent;
-
-    beforeEach(function(){
-      view = new View();
-      view.render();
-
-      fooEvent = $.Event("click");
-      barEvent = $.Event("click");
-
-      spyOn(fooEvent, 'preventDefault');
-      spyOn(fooEvent, 'stopPropagation');
-
-      spyOn(barEvent, 'preventDefault');
-      spyOn(barEvent, 'stopPropagation');
-
-      view.$(".foo").trigger(fooEvent);
-      view.$(".bar").trigger(barEvent);
-    });
-
-    it("should prevent and don't stop the first view event", function(){
-      expect(fooEvent.preventDefault).toHaveBeenCalled();
-      expect(fooEvent.stopPropagation).not.toHaveBeenCalled();
-    });
-
-    it("should not prevent and stop the second view event", function(){
-      expect(barEvent.preventDefault).not.toHaveBeenCalled();
-      expect(barEvent.stopPropagation).toHaveBeenCalled();
+    it('should prevent and dont stop the first view event', function() {
+      expect(this.fooEvent.isDefaultPrevented()).to.be.true;
+      expect(this.fooEvent.isPropagationStopped()).to.be.false;
     });
   });
-
 });

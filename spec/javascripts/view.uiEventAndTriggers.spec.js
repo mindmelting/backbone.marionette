@@ -1,118 +1,96 @@
-describe("view ui event trigger configuration", function(){
-  "use strict";
+describe('view ui event trigger configuration', function() {
+  'use strict';
 
-  describe("@ui syntax within events and triggers", function() {
-    var view, view2, view3, fooHandler, attackHandler, tapHandler;
+  describe('@ui syntax within events and triggers', function() {
+    beforeEach(function() {
+      this.fooHandlerStub       = this.sinon.stub();
+      this.barHandlerStub       = this.sinon.stub();
+      this.notBarHandlerStub    = this.sinon.stub();
+      this.fooBarBazHandlerStub = this.sinon.stub();
 
-    var View = Backbone.Marionette.ItemView.extend({
-      ui: {
-        foo: '.foo',
-        bar: '#tap'
-      },
+      this.templateFn = _.template('<div id="foo"></div><div id="bar"></div><div id="baz"></div>');
 
-      triggers: {
-        "click @ui.foo": "do:foo"
-      },
+      this.uiHash = {
+        foo: '#foo',
+        bar: '#bar',
+        baz: '#baz'
+      };
 
-      events: {
-        "click @ui.bar": "attack",
-        "click div:not(@ui.bar)": "tapper"
-      },
+      this.triggersHash = {
+        'click @ui.foo': 'fooHandler'
+      };
 
-      tapper: function() {
-        tapHandler();
-      },
-
-      attack: function() {
-        attackHandler();
-      },
-
-      render: function(){
-        this.$el.html("<button class='foo'></button><div id='tap'></div><div class='lap'></div>");
-      }
+      this.eventsHash = {
+        'click @ui.bar'                   : this.barHandlerStub,
+        'click div:not(@ui.bar)'          : this.notBarHandlerStub,
+        'click @ui.foo, @ui.bar, @ui.baz' : this.fooBarBazHandlerStub
+      };
     });
 
-    var View2 = View.extend({
-      triggers: function() {
-        return {
-          "click @ui.foo": {
-            event: "do:foo",
-            preventDefault: true,
-            stopPropagation: false
-          }
-        }
-      },
+    describe('as objects', function() {
+      beforeEach(function() {
+        this.View = Marionette.ItemView.extend({
+          template : this.templateFn,
+          ui       : this.uiHash,
+          triggers : this.triggersHash,
+          events   : this.eventsHash
+        });
+        this.view = new this.View();
+        this.view.render();
 
-      events: function() {
-        return {
-          "click @ui.bar": function() {
-            this.attack();
-          }
-        }
-      }
-    });
-
-    var View3 = View2.extend({
-      ui: function(){
-        return {
-          bar: '#tap'
-        }
-      }
-    });
-
-    beforeEach(function(){
-      view = new View({
-        model: new Backbone.Model()
+        this.view.on('fooHandler', this.fooHandlerStub);
       });
 
-      view2 = new View2({
-        model: new Backbone.Model()
+      it('should correctly trigger an event', function() {
+        this.view.ui.foo.trigger('click');
+        expect(this.fooHandlerStub).to.have.been.calledOnce;
+        expect(this.fooBarBazHandlerStub).to.have.been.calledOnce;
       });
 
-      view3 = new View3({
-        model: new Backbone.Model()
+      it('should correctly trigger a complex event', function() {
+        this.view.ui.bar.trigger('click');
+        expect(this.barHandlerStub).to.have.been.calledOnce;
+        expect(this.fooBarBazHandlerStub).to.have.been.calledOnce;
       });
 
-      view.render();
-      view2.render();
-      view3.render();
-
-      fooHandler = jasmine.createSpy("do:foo event handler");
-      attackHandler = jasmine.createSpy("attack handler");
-      tapHandler = jasmine.createSpy("tap handler");
-      spyOn(view, "attack").andCallThrough();
-      view.on("do:foo", fooHandler);
-      view2.on("do:foo", fooHandler);
+      it('should correctly call an event', function() {
+        this.view.ui.baz.trigger('click');
+        expect(this.notBarHandlerStub).to.have.been.calledOnce;
+        expect(this.fooBarBazHandlerStub).to.have.been.calledOnce;
+      });
     });
 
-    it("should correctly trigger an event", function(){
-      view.$(".foo").trigger("click");
-      expect(fooHandler).toHaveBeenCalled();
-    });
+    describe('as functions', function() {
+      beforeEach(function() {
+        this.View = Marionette.ItemView.extend({
+          template : this.templateFn,
+          ui       : this.sinon.stub().returns(this.uiHash),
+          triggers : this.sinon.stub().returns(this.triggersHash),
+          events   : this.sinon.stub().returns(this.eventsHash)
+        });
+        this.view = new this.View();
+        this.view.render();
 
-    it("should correctly trigger a complex event", function(){
-      view.$(".lap").trigger("click");
-      expect(tapHandler).toHaveBeenCalled();
-    });
+        this.view.on('fooHandler', this.fooHandlerStub);
+      });
 
-    it("should correctly call an event", function(){
-      view.$("#tap").trigger('click');
-      expect(attackHandler).toHaveBeenCalled();
-    });
+      it('should correctly trigger an event', function() {
+        this.view.ui.foo.trigger('click');
+        expect(this.fooHandlerStub).to.have.been.calledOnce;
+        expect(this.fooBarBazHandlerStub).to.have.been.calledOnce;
+      });
 
-    it("should correctly call an event with a functional events hash", function(){
-      view2.$("#tap").trigger('click');
-      expect(attackHandler).toHaveBeenCalled();
-    });
+      it('should correctly trigger a complex event', function() {
+        this.view.ui.bar.trigger('click');
+        expect(this.barHandlerStub).to.have.been.calledOnce;
+        expect(this.fooBarBazHandlerStub).to.have.been.calledOnce;
+      });
 
-    it("should correctly call an event with a functional triggers hash", function(){
-      view2.$(".foo").trigger("click");
-      expect(fooHandler).toHaveBeenCalled();
-    });
-
-    it("should correctly call an event with a functional events hash and functional ui hash", function(){
-      view3.$("#tap").trigger("click");
-      expect(attackHandler).toHaveBeenCalled();
+      it('should correctly call an event', function() {
+        this.view.ui.baz.trigger('click');
+        expect(this.notBarHandlerStub).to.have.been.calledOnce;
+        expect(this.fooBarBazHandlerStub).to.have.been.calledOnce;
+      });
     });
   });
 });
